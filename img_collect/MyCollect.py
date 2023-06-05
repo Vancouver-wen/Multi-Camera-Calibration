@@ -155,9 +155,18 @@ class MyCollect():
             if c == ord('q'):  # 如果按下q 就退出
                 break
             elif c == ord('r'): # 如果按下r 就重置
-                img_num=0
+                print("=> empty img dir ..")
+                def del_file(path):
+                    ls = os.listdir(path)
+                    for i in ls:
+                        c_path = os.path.join(path, i)
+                        if os.path.isdir(c_path):
+                            del_file(c_path)
+                        else:
+                            os.remove(c_path)
+                del_file(img_path)
             elif c == ord('s'):  # 如果按下s 就保存
-                print("=> save frames ..") # TODO
+                print("=> save frames ..") 
                 img_num+=1
                 if img_num>50:
                     print("you have collected enough image pairs")
@@ -246,8 +255,12 @@ class MyCollect():
 
 
 if __name__=="__main__":
-    my_collect=MyCollect(cam_num=1)
-    my_collect.collect()
+    # my_collect=MyCollect(cam_num=1)
+    # my_collect.collect(img_path="./images/")
     """
     开启一个窗口, 按s保存
     """
+    # 编译器会报错，但实际上是可以用的
+    from PyCameraList.camera_device import test_list_cameras, list_video_devices, list_audio_devices
+    cameras = list_video_devices()
+    print(dict(cameras))
