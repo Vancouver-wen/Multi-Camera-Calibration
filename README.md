@@ -13,6 +13,13 @@ Q: TypeError: load() missing 1 required positional argument: 'Loader'
 A: pyYAML版本过高 pip install pyyaml==5.4.1
 Q: error: Microsoft Visual C++ 14.0 or greater is required. Get it with "Microsoft C++ Build Tools": https://visualstudio.microsoft.com/visual-cpp-build-tools/
 A: 根据提示的网址安装 visual studio
+Q: ERROR: Could not find a version that satisfies the requirement pyvista-qt (from versions: none)
+ERROR: No matching distribution found for pyvista-qt
+A: pip install pyvistaqt
+Q: ERROR - No module named 'colour'
+A: pip install colour
+Q: ERROR - No module named 'qtawesome'
+A: pip install qtawesome
 ```
 
 ## multicam的安装
@@ -26,6 +33,10 @@ pip install -v -e . # -v 打印详细信息  -e 使用源码安装  . 执行该�
 pip install multical
 ```
 ## pycameralist的安装
+
+根据摄像头硬件标识VID&PID获取OpenCV打开照相机所需参数index索引下标
+https://blog.csdn.net/u012131025/article/details/127983859
+
 
 pycameralist能够获取所有相机的 id 与 name
 但区分不同摄像头的关键应该是 PID 和VID，而不是name，尤其是当相机型号完全相同的时候
@@ -70,10 +81,30 @@ my_collect.collect(img_path="./images/")
 # 开启一个窗口，按 s 保存
 ```
 
-## multicam计算内参外参畸变系数
+## multical 计算内参外参畸变系数
+```
+multical calibrate --boards multical/example_boards/my_charuco_16x22.yaml  --image_path /c/Github/Camera-Calibration/img_collect/images
+```
+
+## multical 可视化
+```
+multical vis --workspace_file /c/Github/Camera-Calibration/img_collect/images/calibration.pkl
+```
 
 ## 世界坐标系的调整
 
 ## 将相机参数保存为标准json文件
 
 ## TEST：读取标准json文件，将世界坐标轴可视化在每个相机图像中
+
+## USB带宽不足，无法容纳缓冲区
+最有可能的是,视频捕获设备的驱动程序报告了USB带宽争用.检查像素格式是否为YUYV,恰好是未压缩的.相反,如果像素格式是MJPG(压缩),则可以在同一USB通道上具有多个设备.
+
+v4l2-ctl -d /dev/video0 --list-formats
+输出将如下所示:
+
+ioctl: VIDIOC_ENUM_FMT
+    Index       : 0
+    Type        : Video Capture
+    Pixel Format: 'YUYV'
+    Name        : 16bpp YUY2, 4:2:2, packed

@@ -1,0 +1,4 @@
+INFO - Using boards:
+INFO - charuco_16x22 CharucoBoard {type='charuco', aruco_dict='4X4_1000', aruco_offset=0, size=(16, 22), num_ids=176, marker_length=0.0375, square_length=0.05, aruco_params={}}
+INFO - Found camera directories ['all_cams', 'my_boards'] with 0 matching images
+INFO - Loading images..
