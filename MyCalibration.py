@@ -9,14 +9,15 @@ import shutil
 import os
 import json
 
-from config import config
-
 class MyBoardDetector():
     '''
     实例化(__init__)时，根据config文件创建 Calibration Pattern \n
     被调用(detect)时，输入一个图像，输入表示该图像能够用于 Calibration
     '''
     def __init__(self,config):
+        self.config=config
+        # save Calibration Board Picture
+        self.generate()
         from cv2 import aruco
         # ChAruco board variables
         self.CHARUCOBOARD_ROWCOUNT = config.board.size[0]
@@ -34,6 +35,93 @@ class MyBoardDetector():
         )
         # Set response_threshold
         self.response_threshold=config.response_threshold
+    
+    def generate(self,):
+        # init path
+        self.calibration_board_path=self.config.img_path+"my_boards"
+        if os.path.exists(self.calibration_board_path):
+            shutil.rmtree(self.calibration_board_path)
+        if not os.path.exists(self.calibration_board_path):
+            os.makedirs(self.calibration_board_path)
+        # 生成 yaml配置文件 、 png图片
+        yaml_path=self.generate_yaml()
+        png_path=self.generate_png(yaml_path)
+        if png_path==None:
+            assert False,"调用multical board命令出错！"
+        # 读取、展示 校准板图片
+        board_png = cv2.imread(png_path)
+        board_png = cv2.resize(board_png, (int(board_png.shape[1]/4), int(board_png.shape[0]/4)))
+        if self.config.auto==True:
+            start=time.time()
+            while True:
+                cv2.imshow("frame",board_png)
+                c=cv2.waitKey(1)
+                if c == ord('q'):  # 如果按下q 就退出
+                    break
+                if time.time()-start>=5.0: # 超过 5s 自动退出
+                    break
+        else:
+            while(True):
+                cv2.imshow("frame",board_png)
+                c=cv2.waitKey(1)
+                if c == ord('q'):  # 如果按下q 就退出
+                    break
+        cv2.destroyAllWindows() # 释放 校准板图像 占用的窗口
+
+    def shell_command(self,command):
+        """
+        执行 shell 命令并实时打印输出
+        """
+        # import pexpect
+        # output = pexpect.run(command)
+        # output = os.popen(command)
+        # print(output.read())
+        from subprocess import Popen, PIPE, STDOUT
+        process = Popen(command, stdout=PIPE, stderr=STDOUT, shell=True)
+        with process.stdout:
+            for line in iter(process.stdout.readline, b''):
+                print(line)
+        exitcode = process.wait()
+        return process, exitcode
+    
+    def generate_png(self,yaml_path):
+        png_path=self.config.img_path + "my_boards/"
+        command = " multical boards " 
+        command = command + " --boards " + yaml_path 
+        command = command + " --paper_size " + self.config.board_size
+        command = command + " --pixels_mm " + self.config.board_pixel_pre_mm
+        command = command + " --write " + png_path
+        print("=> 执行shell命令：",command)
+        # 调用 shell命令 multical board
+        try:
+            process,exitcode=self.shell_command(command=command)
+        except:
+            return None
+        png_path=png_path+"charuco.png"
+        print("=> 校准板 .png图像 被保存在：",png_path)
+        return png_path
+        
+    def generate_yaml(self,):
+        from copy import deepcopy
+        boards=dict()
+        charuco=deepcopy(dict(self.config.board))
+        # 补充一下额外的参数
+        charuco["_type_"]="charuco"
+        charuco["aruco_dict"]="4X4_1000"
+        charuco["min_rows"]=3
+        charuco["min_points"]=20
+        charuco["size"]=charuco["size"]
+        boards["charuco"]=deepcopy(charuco)
+        # 保存 校准版 yaml文件
+        import yaml
+        boards={"boards":deepcopy(boards)}
+        print("=> 打印校准板参数:",boards)
+        with open(self.config.img_path+"my_boards/my_charuco.yaml", 'w') as file:
+            file.write(yaml.dump(boards, allow_unicode=True))
+        yaml_path=self.config.img_path+"my_boards/my_charuco.yaml"
+        print("=> 校准板 .yaml文件 被保存在:",yaml_path)
+        return yaml_path
+
     def detect(self,frame):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         corners, ids, _ = aruco.detectMarkers(image=gray,dictionary=self.ARUCO_DICT)
@@ -160,8 +248,7 @@ class MyThreads():
             print(reslt)
             pass
         print(cameras)
-        from easydict import EasyDict
-        return EasyDict(cameras)
+        return cameras
 
     def can_distinguish_cam_byid(self,camid_maps):
         for camid_map in camid_maps:
@@ -180,17 +267,17 @@ class MyThreads():
             return False
 
     def map_capid_real(self,caps,camid_maps):
-        # TODO 利用相机名称或pid vid，将虚拟的相机ID转换为真实的相机ID
-        # 判断能够通过 id 和 name 区分 cameras
         byid=self.can_distinguish_cam_byid(camid_maps)
         byname=self.can_distinguish_cam_byname(camid_maps)
         if byid==True:
             print("=> you can distinguish cameras by vid&pid, rewrite def map_capid_real in Class MyThreads ..")
+            # TODO 利用相机 name区分 cameras
         elif byname==True:
             print("=> you can distinguish cameras by name, rewrite def map_capid_real in Class MyThreads ..")
+            # TODO 利用相机 vid pid 区分 cameras
         else:
             print("warning: can't distinguish cameras, virtual index will be used!")
-        return caps
+            return caps
 
     def get_caps(self,resolution):
         camid_maps = self.get_caps_name_id()
@@ -254,7 +341,6 @@ class MyCollect():
             os.makedirs(self.calibration_all_img_path)
     
     def save_calibration_img(self,painted_frame,frames):
-        print("=> save frames ..") 
         self.img_num+=1
         if self.img_num>50:
             print("you have collected enough image pairs")
@@ -273,6 +359,10 @@ class MyCollect():
             self.auto_collect()
         else:
             self.manual_collect()
+        cv2.destroyAllWindows()  # 释放 collect过程中打开的窗口
+        yaml_path=self.config.img_path + "my_boards/my_charuco.yaml"
+        imgfolder_path=self.config.img_path + "images/"
+        return yaml_path,imgfolder_path
 
     def auto_collect(self,):
         FPS=0
@@ -283,17 +373,25 @@ class MyCollect():
             c=cv2.waitKey(1)
             if c == ord('q'):  # 如果按下q 就退出
                 break
-            more_than_one_available=0
-            for rec in recs:
-                if rec==True:
-                    more_than_one_available+=1
-            if more_than_one_available>=1:
-                more_than_one_available=True
-            if more_than_one_available==True:
-                for index,rec in enumerate(recs):
+            if FPS%10 ==0: # 降低满足调试时，保存图片的速率
+                more_than_one_available=0
+                for rec in recs:
                     if rec==True:
-                        self.calibration_available_num[index]+=1
-                self.save_calibration_img(painted_frame,frames) # 保存图片组，自增self.img_num
+                        more_than_one_available += 1
+                if more_than_one_available>=2: # 必须至少有两个摄像头 “共视”，否则不利于校准的效率
+                    more_than_one_available=True
+                else:
+                    more_than_one_available=False
+                if more_than_one_available==True:
+                    can_save=False
+                    for index,rec in enumerate(recs):
+                        if rec==True and self.calibration_available_num[index]<=self.config.max_available_num:
+                            can_save=True
+                    if can_save==True:
+                        for index,rec in enumerate(recs):
+                            if rec==True:
+                                self.calibration_available_num[index]+=1
+                        self.save_calibration_img(painted_frame,frames) # 保存图片组，自增self.img_num
             end_time = time.time()
             if end_time-start_time <1.0:
                 FPS+=1
@@ -427,7 +525,68 @@ class MyCollect():
                 imgblank[(i * h + i*border):((i + 1) * h+i*border), (j * w + j*border):((j + 1) * w + j*border), :] = allimgs[i * order[1] + j]
         return imgblank
 
+class MyCalibrate():
+    """
+    调用 multical calibrate 计算相机内参和相对外参
+    计算 首个相机 的外参，转换其他相机的外参
+    """
+    def __init__(self,config):
+        self.config=config
+        
+        self.yaml_path=None
+        self.imgfolder_path=None
+        if config.recollect==True:
+            self.prepare_for_calivration()
+        else:
+            self.test_calibration()
+
+    def prepare_for_calivration(self,):
+        # 获取 yaml文件 img文件夹 的 相对地址
+        my_collect=MyCollect(config=self.config)
+        yaml_path,imgfolder_path=my_collect.collect()
+        del my_collect
+        # 将 相对地址 转化为 绝对地址
+        self.yaml_path=os.path.abspath(yaml_path)
+        self.imgfolder_path=os.path.abspath(imgfolder_path)
+    
+    def test_calibration(self,):
+        # 赋值相对地址
+        yaml_path = self.config.img_path + "my_boards/my_charuco.yaml"
+        imgfolder_path = self.config.img_path + "images/"
+        # 将 相对地址 转化为 绝对地址
+        self.yaml_path=os.path.abspath(yaml_path)
+        self.imgfolder_path=os.path.abspath(imgfolder_path)
+        print(self.yaml_path)
+        print(self.imgfolder_path)
+
+    def start_calibrate(self,):
+        command=" multical calibrate "
+        command = command + " --boards " + self.yaml_path
+        command = command + " --image_path " + self.imgfolder_path
+        process, exitcode=self.shell_command(command)
+
+    def shell_command(self,command):
+        """
+        执行 shell 命令并实时打印输出
+        """
+        # import pexpect
+        # output = pexpect.run(command)
+        # output = os.popen(command)
+        # print(output.read())
+        from subprocess import Popen, PIPE, STDOUT
+        process = Popen(command, stdout=PIPE, stderr=STDOUT, shell=True)
+        with process.stdout:
+            for line in iter(process.stdout.readline, b''): # 沿迭代器循环，直到 b'' 这应该是规定好的
+                print(line)
+        exitcode = process.wait()
+        return process, exitcode
+
 if __name__=="__main__":
+    """
+    MyCalibration.py文件中的所有class，都遵循一个单项的“调用”链条
+    => MyCalibrate -> MyCollect -> MyThreads -> MyThread -> MyBoardDetector
+    """
     from config import config
-    my_collect=MyCollect(config=config)
-    my_collect.collect()
+    my_calibrate=MyCalibrate(config=config)
+    my_calibrate.start_calibrate()
+
