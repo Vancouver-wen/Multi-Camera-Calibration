@@ -17,7 +17,7 @@ config.auto=True
 config.response_threshold=20 # 一个图片成为合格的校准图像，所需要具备的“可用角点数量”
 config.max_available_num=25
 
-config.cam_num=3
+config.cam_num=2
 config.resolution=(640,480)
 
 config.img_path="./img_collect/"

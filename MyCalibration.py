@@ -156,8 +156,9 @@ class MyThread(threading.Thread):
         _,frame = self.cap.read()
         # 判断 frame 是否为 None
         if frame is None: # print(type(frame))
-            print("出现带宽限制！",type(frame))
             frame = np.full((self.width, self.height, 3), 255, dtype = np.uint8) # 填充空白，让程序能够继续运行
+            print("出现带宽限制！填充图像",frame.shape)
+            frame=cv2.resize(frame,dsize=(self.width, self.height))
         else:
             frame=cv2.resize(frame,dsize=(self.width, self.height))
         # 判断 运行 平台
@@ -574,26 +575,32 @@ class MyCalibrate():
         # 获取 yaml文件 img文件夹 的 相对地址
         my_collect=MyCollect(config=self.config)
         yaml_path,imgfolder_path=my_collect.collect()
+        pkl_path = self.config.img_path+"images/calibration.pkl"
         del my_collect
         # 将 相对地址 转化为 绝对地址
         self.yaml_path=os.path.abspath(yaml_path)
         self.imgfolder_path=os.path.abspath(imgfolder_path)
+        self.pkl_path=os.path.abspath(pkl_path)
     
     def test_calibration(self,):
         # 赋值相对地址
         yaml_path = self.config.img_path + "my_boards/my_charuco.yaml"
         imgfolder_path = self.config.img_path + "images/"
+        pkl_path = self.config.img_path+"images/calibration.pkl"
         # 将 相对地址 转化为 绝对地址
         self.yaml_path=os.path.abspath(yaml_path)
         self.imgfolder_path=os.path.abspath(imgfolder_path)
-        print(self.yaml_path)
-        print(self.imgfolder_path)
+        self.pkl_path=os.path.abspath(pkl_path)
 
     def start_calibrate(self,):
-        command=" multical calibrate "
+        command = " multical calibrate "
         command = command + " --boards " + self.yaml_path
         command = command + " --image_path " + self.imgfolder_path
         process, exitcode=self.shell_command(command)
+        command = " multical vis "
+        command = command + " --workspace_file " + self.pkl_path
+        process, exitcode=self.shell_command(command)
+        print("=> TODO 接入 3DHPE 算法 ..")
 
     def shell_command(self,command):
         """
@@ -604,6 +611,7 @@ class MyCalibrate():
         # output = os.popen(command)
         # print(output.read())
         from subprocess import Popen, PIPE, STDOUT
+        print("=> 执行shell命令:",command)
         process = Popen(command, stdout=PIPE, stderr=STDOUT, shell=True)
         with process.stdout:
             for line in iter(process.stdout.readline, b''): # 沿迭代器循环，直到 b'' 这应该是规定好的

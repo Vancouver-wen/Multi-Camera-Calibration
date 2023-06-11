@@ -1,16 +1,17 @@
 ```
-windows 创建环境记录
-pip install opencv_contrib_python==3.4.18.65 # 会报错，不要理会
-pip install numpy==1.21
-pip install easydict
-pip install pywin32
-```
-```
-linux 创建环境记录
+# 源码安装 multical
 pip install opencv_contrib_python==3.4.18.65 # 会报错版本不匹配，不要理会
 pip install numpy==1.21
 pip install easydict
+pip install vtk==9.1.0
+pip install pyvistaqt
+pip install pyqt5
+pip install colour
+pip install qtawesome
 
+# windows 需要进行额外的操作
+# 安装 pycameralist
+pip install pywin32
 ```
 
 
@@ -82,13 +83,16 @@ cd pycameralist
 pip install -r requirements.py
 pip install -v -e .
 ```
-1. 从PyPi中安装
+2. 从PyPi中安装
 ```shell
 # 只适用于 python3.6，作者没有提供其他python版本的whl文件
 pip install pycameralist
 ```
 
 #### Ubuntu 用户
+```
+无需额外安装 PyPi包
+```
 
 
 <font color=#008000 >Bug Record:</font>

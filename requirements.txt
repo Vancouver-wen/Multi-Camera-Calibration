@@ -16,7 +16,6 @@ pyvista==0.39.1
 pyvistaqt==0.2.0
 pywin32==306
 PyYAML==5.4.1
-PyYAML==6.0
 QtAwesome==1.2.3
 QtPy==2.3.1
 scipy==1.10.1
