@@ -1,3 +1,17 @@
+```
+windows 创建环境记录
+pip install opencv_contrib_python==3.4.18.65 # 会报错，不要理会
+pip install numpy==1.21
+pip install easydict
+pip install pywin32
+```
+```
+linux 创建环境记录
+pip install opencv_contrib_python==3.4.18.65 # 会报错版本不匹配，不要理会
+pip install numpy==1.21
+pip install easydict
+```
+
 
 **TODO：**
 1. 世界坐标系的调整
@@ -33,6 +47,7 @@ my_calibrate.start_calibrate()
 
 1. 使用源码安装
 ```shell
+# 建议使用源码安装
 cd multical
 pip install -v -e . # -v 打印详细信息  -e 使用源码安装  . 执行该目录下的setup.py
 ```
@@ -50,13 +65,14 @@ multical calibrate --boards multical/example_boards/my_charuco_16x22.yaml  --ima
 # multical 可视化
 multical vis --workspace_file img_collect/images/calibration.pkl
 ```
-#### pycameralist的安装
+#### Windows 用户
+**pycameralist的安装**
 
 网址： https://gitee.com/jiangbin2020/py-camera-list-project
 ```
-温馨提示：同一厂家出的同一型号摄像头，他的vid和pid是一样的，利用上述方法就不得行，
-所以你可以在购买摄像头的时候跟客服说，让他们给每个摄像头不同的vidpid号，
-我经常在淘宝买摄像头，他们可以提供这个服务。
+温馨提示：
+同一厂家出的同一型号摄像头，他的vid和pid是一样的，利用上述方法就不行，
+可以在购买摄像头的时候跟客服说，让他们给每个摄像头不同的vidpid号，
 ```
 
 1. 使用源码安装
@@ -70,6 +86,8 @@ pip install -v -e .
 # 只适用于 python3.6，作者没有提供其他python版本的whl文件
 pip install pycameralist
 ```
+
+#### Ubuntu 用户
 
 
 <font color=#008000 >Bug Record:</font>

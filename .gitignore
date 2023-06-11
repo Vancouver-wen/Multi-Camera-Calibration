@@ -1,3 +1,3 @@
 
 # 表示忽略 build/目录下的所有文件，过滤整个build文件夹
-img_collect
+img_collect/

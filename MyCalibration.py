@@ -86,6 +86,8 @@ class MyBoardDetector():
     
     def generate_png(self,yaml_path):
         png_path=self.config.img_path + "my_boards/"
+        yaml_path=os.path.abspath(yaml_path)
+        png_path=os.path.abspath(png_path)
         command = " multical boards " 
         command = command + " --boards " + yaml_path 
         command = command + " --paper_size " + self.config.board_size
@@ -97,7 +99,7 @@ class MyBoardDetector():
             process,exitcode=self.shell_command(command=command)
         except:
             return None
-        png_path=png_path+"charuco.png"
+        png_path=png_path+"\charuco.png"
         print("=> 校准板 .png图像 被保存在：",png_path)
         return png_path
         
@@ -200,15 +202,15 @@ class MyThreads():
         return cap
     
     def get_caps_name_id(self,):
-        # 使用PyCameralist打印所有相机的 "虚拟编号"和"name" 
-        from PyCameraList.camera_device import test_list_cameras, list_video_devices, list_audio_devices
-        cameras = list_video_devices()
-        for index,camera in enumerate(cameras):
-            cameras[index]=camera[1]
         # 在 初始化每个相机的时候， 和 "vid pid", 涉及操作系统底层，分 windows 和 linux 两种情形
         import platform
         plat = platform.system().lower()
         if plat == 'windows':
+            # 使用PyCameralist打印所有相机的 "虚拟编号"和"name" 
+            from PyCameraList.camera_device import test_list_cameras, list_video_devices, list_audio_devices
+            cameras = list_video_devices()
+            for index,camera in enumerate(cameras):
+                cameras[index]=camera[1]
             # 获取所有 USB 设备的 VID PID
             import win32com.client # pip install pypiwin32
             wmi = win32com.client.GetObject ("winmgmts:")
@@ -272,9 +274,11 @@ class MyThreads():
         if byid==True:
             print("=> you can distinguish cameras by vid&pid, rewrite def map_capid_real in Class MyThreads ..")
             # TODO 利用相机 name区分 cameras
+            return caps
         elif byname==True:
             print("=> you can distinguish cameras by name, rewrite def map_capid_real in Class MyThreads ..")
             # TODO 利用相机 vid pid 区分 cameras
+            return caps
         else:
             print("warning: can't distinguish cameras, virtual index will be used!")
             return caps
