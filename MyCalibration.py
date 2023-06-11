@@ -244,19 +244,44 @@ class MyThreads():
                         'pid':None,
                     }
         elif plat == 'linux':
-            # TODO 能否使用 pyusb？
-            import serial.tools.list_ports; 
-            reslt =  serial.tools.list_ports.comports()
-            print(reslt)
-            pass
+            # pip install pyserial
+            # pip install pyusb
+            cameras=[]
+            # use v4l Ubuntu下所以的信息都是以文件形成储存，所以可以通过读取设备文件来区别索引号和pid 、vid
+            import glob
+            cameras_path = '/sys/class/video4linux/'
+            cameras_list = list(glob.glob(cameras_path+'video*'))
+            cameras_list.sort()
+            for index,camera_path in enumerate(cameras_list):
+                if index%2==1:
+                    continue
+                else: # real device index
+                    name_path="/name"
+                    id_str_path="/device/modalias"
+                    name=open(camera_path+name_path,"r").read()
+                    id_str=open(camera_path+id_str_path,"r").read()
+                    name=name.split(':')[0]
+                    id_str=id_str.split(':')[1][0:10]
+                    vid=id_str[1:5]
+                    pid=id_str[6:]
+                    cameras.append({
+                        'name':name,
+                        'vid':vid,
+                        'pid':pid,
+                    })       
         print(cameras)
         return cameras
-
     def can_distinguish_cam_byid(self,camid_maps):
+        ids=[]
         for camid_map in camid_maps:
             if camid_map['vid']==None or camid_map['pid']==None:
                 return False
-        return True
+            ids.append(camid_map['vid']+camid_map['pid'])
+        ids=list(set(ids))
+        if len(ids)==len(camid_maps):
+            return True
+        else:
+            return False
     
     def can_distinguish_cam_byname(self,camid_maps):
         names=[]
@@ -281,6 +306,7 @@ class MyThreads():
             return caps
         else:
             print("warning: can't distinguish cameras, virtual index will be used!")
+            exit()
             return caps
 
     def get_caps(self,resolution):

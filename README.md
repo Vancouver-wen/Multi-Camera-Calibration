@@ -10,6 +10,7 @@ linux 创建环境记录
 pip install opencv_contrib_python==3.4.18.65 # 会报错版本不匹配，不要理会
 pip install numpy==1.21
 pip install easydict
+
 ```
 
 
