@@ -1,3 +1,7 @@
+[相机模型、校准原理](./camera_calibration_principle/相机模型校准原理.md)
+[相机参数转换](https://blog.csdn.net/ustczhng2012/article/details/120177812)
+[求解PnP问题](https://www.jianshu.com/p/ce4d05d13cb4)
+
 ```
 # 源码安装 multical
 pip install opencv_contrib_python==3.4.18.65 # 会报错版本不匹配，不要理会
@@ -13,14 +17,6 @@ pip install qtawesome
 # 安装 pycameralist
 pip install pywin32
 ```
-
-
-**TODO：**
-1. 世界坐标系的调整
-2. 将相机参数保存为标准json文件
-3. TEST：读取标准json文件，将世界坐标轴可视化在每个相机图像中
-4. 在linux下根据name和vid pid区分usb相机
-5. 完成multical可视化，并记录需要的环境
 
 
 ## Use MyCalibration to calibrate multi-cameras

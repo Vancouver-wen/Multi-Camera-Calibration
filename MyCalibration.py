@@ -8,6 +8,7 @@ import datetime
 import shutil
 import os
 import json
+from easydict import EasyDict
 
 class MyBoardDetector():
     '''
@@ -299,11 +300,11 @@ class MyThreads():
         byname=self.can_distinguish_cam_byname(camid_maps)
         if byid==True:
             print("=> you can distinguish cameras by vid&pid, rewrite def map_capid_real in Class MyThreads ..")
-            # TODO 利用相机 name区分 cameras
+            # 利用相机 name区分 cameras
             return caps
         elif byname==True:
             print("=> you can distinguish cameras by name, rewrite def map_capid_real in Class MyThreads ..")
-            # TODO 利用相机 vid pid 区分 cameras
+            # 利用相机 vid pid 区分 cameras
             return caps
         else:
             print("warning: can't distinguish cameras, virtual index will be used!")
@@ -558,58 +559,197 @@ class MyCollect():
 
 class MyCalibrate():
     """
-    调用 multical calibrate 计算相机内参和相对外参
-    计算 首个相机 的外参，转换其他相机的外参
+    调用 multical calibrate 计算相机内参和相对外参 \n
+    计算 首个相机 的外参，转换其他相机的外参 \n
+    使用 start_calibrate
     """
     def __init__(self,config):
         self.config=config
         
         self.yaml_path=None
         self.imgfolder_path=None
+        self.pkl_path=None
+        self.json_path=None
+        self.real_json_path=None
         if config.recollect==True:
             self.prepare_for_calivration()
         else:
             self.test_calibration()
 
     def prepare_for_calivration(self,):
+        """
+        生成校准板，并展示、保存 \t
+        拍摄 多视角校准图片，并保存
+        """
         # 获取 yaml文件 img文件夹 的 相对地址
         my_collect=MyCollect(config=self.config)
         yaml_path,imgfolder_path=my_collect.collect()
         pkl_path = self.config.img_path+"images/calibration.pkl"
+        json_path= self.config.img_path+"images/calibration.json"
         del my_collect
         # 将 相对地址 转化为 绝对地址
         self.yaml_path=os.path.abspath(yaml_path)
         self.imgfolder_path=os.path.abspath(imgfolder_path)
         self.pkl_path=os.path.abspath(pkl_path)
+        self.json_path=os.path.abspath(json_path)
     
     def test_calibration(self,):
+        """
+        当 config.recollect==False 时触发 \t
+        此时应该满足：已经生成校准板、已经拍摄多视角校准图片
+        """
         # 赋值相对地址
         yaml_path = self.config.img_path + "my_boards/my_charuco.yaml"
         imgfolder_path = self.config.img_path + "images/"
         pkl_path = self.config.img_path+"images/calibration.pkl"
+        json_path= self.config.img_path+"images/calibration.json"
         # 将 相对地址 转化为 绝对地址
         self.yaml_path=os.path.abspath(yaml_path)
         self.imgfolder_path=os.path.abspath(imgfolder_path)
         self.pkl_path=os.path.abspath(pkl_path)
+        self.json_path=os.path.abspath(json_path)
 
     def start_calibrate(self,):
+        """
+        该方法返回一个 相机校准json 的绝对地址
+        """
+        self.start_intrinsic_calibrate()
+        self.start_extrinsic_calibrate()
+        # 返回标准json文件的path
+        return os.path.abspath(self.real_json_path)
+        
+    def start_extrinsic_calibrate(self,):
+        # 加载 all cameras 的 相机内参
+        with open(self.json_path, "r", encoding="utf-8") as f:
+            cams_param = json.load(f)
+        # 加载 cam1 的 相机参数
+        cam1_intrinsic=EasyDict(cams_param["cameras"]["cam1"])
+        cam1_extrinsic=EasyDict(cams_param["camera_poses"]["cam1"])
+        # 计算 cam1的 真实 相机外参
+        rmat,tvec=self.cam1_extrinsic_calibrate(cam1_param=cam1_intrinsic)
+        print("=> cv2.solvePnP 计算得到 cam1 相机外参\n   ",f"R:{list(rmat)}\n   ",f"T:{list(tvec)}")
+        # TODO 计算 相机外参 变换矩阵 
+        # transform_R=mat(rmat,cam1.R逆)            transform_T=trev - cam1.T
+        # cam_new_R=mat(transform_R,cam_origin_R)   cam_new_T=transform_T + cam_origin_T
+        cam1_extrinsic_I=np.linalg.inv( np.asarray(cam1_extrinsic.R, dtype = np.float64) )
+        transform_R=np.matmul(rmat,cam1_extrinsic_I) # cam1_extrinsic_I 几乎就是 单位阵
+        transform_T= np.squeeze(tvec)-np.asarray(cam1_extrinsic.T, dtype = np.float64)
+        print("=> transform_R:",transform_R)
+        print("=> transform_T:",transform_T)
+        cams_real_param=[]
+        # 整理 json 数据结构
+        for index in range(self.config.cam_num):
+            cam_name="cam%01d"%(index+1)
+            cam_real_param=dict()
+            cam_real_param["resolution"]=tuple(cams_param["cameras"][cam_name]["image_size"])
+            cam_real_param["K"]=cams_param["cameras"][cam_name]["K"]
+            cam_real_param["dist"]=cams_param["cameras"][cam_name]["dist"]
+            if index==0:
+                cam_real_param["R"]=cams_param["camera_poses"][cam_name]["R"]
+                cam_real_param["T"]=cams_param["camera_poses"][cam_name]["T"]
+            else:
+                cam_name=cam_name+"_to_"+"cam%01d"%(index)
+                cam_real_param["R"]=cams_param["camera_poses"][cam_name]["R"]
+                cam_real_param["T"]=cams_param["camera_poses"][cam_name]["T"]
+            cams_real_param.append(cam_real_param)
+        # 计算 all cameras 的 真实 相机外参
+        for index in range(self.config.cam_num):
+            cam_real_param=cams_real_param[index]
+            cam_real_param["R"]=np.matmul(transform_R,np.asarray(cam_real_param["R"], dtype = np.float64)).tolist()
+            cam_real_param["T"]=(transform_T + np.asarray(cam_real_param["T"], dtype = np.float64)).tolist()
+        # print("=> 所有相机的真实参数:",cams_real_param)
+        # 保存 all cameras 的 真实 相机外参
+        self.real_json_path=self.config.img_path+'real_calibration.json'
+        with open(self.real_json_path,'w',encoding='utf8') as f:
+            # ensure_ascii=False才能输入中文，否则是Unicode字符
+            # indent=2 JSON数据的缩进，美观
+            json.dump(cams_real_param,f,ensure_ascii=False,indent=2)
+        
+    def cam1_extrinsic_calibrate(self,cam1_param):
+        print("=> intrinsic calibration得到 所有相机的内参、畸变和相对外参 ..")
+        print("=> 假想 cam01 的 外参 是 单位矩阵 ..")
+        print("=> 拍摄一张 cam01 的视角，手动逆时针选取长方形的四个点 ..")
+
+        # 鼠标操作，鼠标选中源图像中需要替换的位置信息
+        def mouse_action01(event, x, y, flags, param_array):
+            cv2.imshow('collect img_before coordinate', img_before_copy)
+            if event == cv2.EVENT_LBUTTONUP:
+                # 画圆函数，参数分别表示原图、坐标、半径、颜色、线宽(若为-1表示填充)
+                # 这个是为了圈出鼠标点击的点
+                cv2.circle(img_before_copy, (x, y), 2, (0, 0, 255), -1)
+                # 用鼠标单击事件来选择坐标
+                # 将选中的四个点存放在集合中，在收集四个点时，四个点的点击顺序需要按照 img_src_coordinate 中的点的相对位置的前后顺序保持一致
+                # print(f'{x}, {y}') # 在收集四个点的过程中打印 像素位置
+                param_array.append([x, y])
+        
+        print("=> 请按照象限递增的顺序，逆时针选择水平桌面的四个点，选完四个点后，按 esc 退出 ..")
+        print("=> cam1 的相机内参:",cam1_param)
+        # 获得来自 cam1 的一帧图像
+        if self.config.recollect==True:
+            cap= cv2.VideoCapture(0)
+            ret, frame = cap.read() 
+            cap.release()
+            assert ret,"ERROR: can not get view from cam1"
+            img_before=frame
+        else:
+            img_before = cv2.imread('./img_collect/images/cam1/image01.jpg', cv2.IMREAD_COLOR)
+        img_before_copy = np.tile(img_before, 1)
+        before_coordinate = []
+        cv2.namedWindow('collect img_before coordinate',0)
+        cv2.setMouseCallback('collect img_before coordinate', mouse_action01, before_coordinate)
+        while True:
+            # 按esc 或 采集满4个点  退出鼠标采集行为
+            if cv2.waitKey(1) == 27 or len(before_coordinate)==4: 
+                cv2.destroyAllWindows()
+                break
+        print("=> 依次选取的像素点位置：",before_coordinate)
+        imgPoints = np.asarray(before_coordinate, dtype = np.float64)
+        def get_objPoints(horizontal_table):
+            width,length,height=horizontal_table
+            objPoints=[
+                [int(width/2),int(length/2),height], # 第一象限
+                [-int(width/2),int(length/2),height], # 第二象限
+                [-int(width/2),-int(length/2),height], # 第三象限
+                [int(width/2),-int(length/2),height] # 第四象限
+            ]
+            return objPoints
+        # 四个点的世界坐标系坐标
+        objPoints = np.asarray(get_objPoints(self.config.horizontal_table), dtype = np.float64)
+        # 相机内参、畸变
+        cameraMatrix = np.asarray( cam1_param.K ,dtype = np.float64)
+        distCoeffs = np.asarray( cam1_param.dist , dtype = np.float64)
+        # pnp算法
+        retval, rvec, tvec = cv2.solvePnP(objPoints, imgPoints, cameraMatrix, distCoeffs)
+        """cv2.solvePnP 输入
+        objPoints：N*3或者3*N的世界坐标系中的3D点坐标，单位mm
+        imagePoints：N*2或者2*N的图像坐标系中点的坐标，单位pixel
+        cameraMatrix,distCoeffs：相机内参矩阵 畸变系数
+        """
+        """cv2.solvePnP 返回值
+        retval:true 或 false
+        rvec：旋转向量，以Rodrigues向量表示，3x1
+        tvec：平移向量，3x1
+        处理矩阵三维转换时，通常采用旋转矩阵，但是旋转变换其实只有三个自由度，用旋转向量表达时更为简洁
+        旋转向量和旋转矩阵之间可以通过罗德里格斯公式进行转换
+        R = cv2.Rodrigues(a)：a为旋转向量，R为旋转矩阵
+        """
+        rmat=cv2.Rodrigues(rvec)[0]
+        return rmat,tvec
+
+    def start_intrinsic_calibrate(self,):
         command = " multical calibrate "
         command = command + " --boards " + self.yaml_path
         command = command + " --image_path " + self.imgfolder_path
         process, exitcode=self.shell_command(command)
+        print("=> 可视化 intrinsic calibration 的结果 ..")
         command = " multical vis "
         command = command + " --workspace_file " + self.pkl_path
         process, exitcode=self.shell_command(command)
-        print("=> TODO 接入 3DHPE 算法 ..")
 
     def shell_command(self,command):
         """
         执行 shell 命令并实时打印输出
         """
-        # import pexpect
-        # output = pexpect.run(command)
-        # output = os.popen(command)
-        # print(output.read())
         from subprocess import Popen, PIPE, STDOUT
         print("=> 执行shell命令:",command)
         process = Popen(command, stdout=PIPE, stderr=STDOUT, shell=True)
@@ -626,5 +766,6 @@ if __name__=="__main__":
     """
     from config import config
     my_calibrate=MyCalibrate(config=config)
-    my_calibrate.start_calibrate()
-
+    json_path=my_calibrate.start_calibrate()
+    print("json文件绝对路径：",json_path)
+    print("=> TODO 接入 3DHPE 算法 ..")
