@@ -21,10 +21,10 @@ config.response_threshold=20 # 一个图片成为合格的校准图像，所需�
 config.max_available_num=25 # 需要采集的“可用”图片数量
 
 
-config.horizontal_table=(1000,2000,700) # 桌子(width,length,height),单位 mm; 用于统一所有cam的外参
+config.horizontal_table=(1000,800,650) # 桌子(width,length,height),单位 mm; 用于统一所有cam的外参
 
 # Camera Parameters
-config.cam_num=2
+config.cam_num=3
 config.resolution=(640,480)
 
 
