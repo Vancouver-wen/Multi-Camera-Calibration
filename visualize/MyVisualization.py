@@ -76,15 +76,82 @@ class Myplot3d():
     def test_lines(self,):
         pointpair=[]
         pointpair.append( ((0,0,0),(100,100,100)) )
-        pointpair.append( ((-100,-100,-100),(0,0,0)) )
         self.lines(pointpair)
+    def test_scatter(self,):
+        point3d=[100,100,100]
+        self.scatter(point3d)
+
+def test_Myplot3d():
+    myplot3d=Myplot3d()
+    myplot3d.test_scatter()
+    myplot3d.test_lines()
+    myplot3d.show()
 
 class Myshow(Myplot3d):
     def __init__(self,scale=1):
         self.scale=scale
         super().__init__(scale=scale)
+    
+    def adapter(self,points,map="+x-z+y"):
+        """adapter只能在紧挨着 画图代码 之上使用，不能过早调用 \n
+        完成坐标系形式转换 \n
+        matplotlib默认的坐标系是 (x指向右侧，y指向远离方向，z指向上方) \n
+        但 很多时候世界坐标系采用“笛卡尔右手系”或者其他形式 \n
+        args: \n
+        接受 point=[( , , )] / （ ， ， ）两种格式 和  map="+x-z+y" 两个参数 \n
+        map形容点是如何排布的： +x方向指向右侧，-z方向指向远离，+y方向指向上方 \n
+        返回值： \n
+        point=[(x,y,z)] / （x，y，z）这个点符合matplotlib的需求
+        """
+        def one_point_adapter(point,map):
+            new_point=[None,None,None]
+            # 确定 x 的位置
+            index=map.find('x')
+            if '+' in map[index-1] :
+                new_point[0]=point[int(index/2)]
+            else:
+                new_point[0]=-point[int(index/2)]
+            # 确定 y 的位置
+            index=map.find('y')
+            if '+' in map[index-1] :
+                new_point[1]=point[int(index/2)]
+            else:
+                new_point[1]=-point[int(index/2)]
+            # 确定 z 的位置
+            index=map.find('z')
+            if '+' in map[index-1] :
+                new_point[2]=point[int(index/2)]
+            else:
+                new_point[2]=-point[int(index/2)]
+            # list to tuple
+            new_point=(new_point[0],new_point[1],new_point[2])
+            def not_exist_None(point):
+                for i in range(3):
+                    if point[i]==None:
+                        return False
+                return True
+            assert not_exist_None(new_point),"请检查 point与map格式"
+            return new_point
 
-    def draw_cameras_position(self,calibrations):
+        if isinstance(points,tuple):
+            points=one_point_adapter(points,map)
+        elif isinstance(points,list):
+            for index in range(len(points)):
+                points[index]=one_point_adapter(points[index],map)
+        else:
+            raise Exception("=> 请检查 points的格式！")
+        return points
+    def test_adapter(self,):
+        """正确的输出结果: \n
+        (1, 2, 3)
+        [(1, 2, 3), (-1, -2, -3)]
+        """
+        points=(1,-3,2)
+        print(self.adapter(points))
+        points=[(1,-3,2),(-1,3,-2)]
+        print(self.adapter(points))
+
+    def draw_cameras_position(self,calibrations,map="+x-z+y"):
         hd_cameras=[]
         for calibration in calibrations:
             position=calibration["T"]
@@ -98,13 +165,14 @@ class Myshow(Myplot3d):
             rotation_inv=np.linalg.inv(rotation)
             position= np.matmul(rotation_inv,-position)
             position=position*100  # 单位换算，从 m 变成 cm
-            # (x,z,y) -> (x,y,z)
-            point3d=( float(position[0]),float(position[2]),-float(position[1]), )
+            # 调用adapter，适配matplotlib坐标系
+            point3d=self.adapter(point3d,map)
             hd_cameras.append(point3d)
+        hd_cameras=[hd_cameras[0]]
         print(hd_cameras)
         self.scatters(hd_cameras)
 
-    def draw_cameras_pose(self,calibrations):
+    def draw_cameras_pose(self,calibrations,map="+x-z+y"):
         """args:
         calibrations的数据结构为: [{"K","R","T","dist","resolution"}] \n
         T 的单位为 m、米
@@ -120,8 +188,6 @@ class Myshow(Myplot3d):
             # 世界坐标系[X,Y,Z] = matmul(R.-1,-T)
             rotation_inv=np.linalg.inv(rotation)
             position= np.matmul(rotation_inv,-position) # 单位 m
-            # 绘制相机位置
-            # self.scatter((float(position[0]*100),float(position[2]*100),-float(position[1]*100)))
             # 相机坐标系坐标轴
             direction_len=0.2*self.scale # 单位 m
             x_point=np.asarray([float(direction_len), float(0), float(0)],dtype = np.float64) # 相机坐标系
@@ -137,19 +203,22 @@ class Myshow(Myplot3d):
                 position=position*100
                 direction=direction*100 
                 direction=direction+position
-                # (x,z,y) -> (x,y,z)
-                position=( float(position[0]),float(position[2]),-float(position[1]), )
-                direction=( float(direction[0]),float(direction[2]),-float(direction[1]), )
-                # import pdb;pdb.set_trace()
+                # 调用adapter，适配matplotlib坐标系
+                position=(position[0],position[1],position[2])
+                direction=(direction[0],direction[1],direction[2])
+                position=self.adapter(position,map)
+                direction=self.adapter(direction,map)
+                # 绘制相机位置
+                # self.scatter(position)
+                # 绘制相机坐标系
                 self.line(position,direction,color)
             
             draw_direction(position,x_direction,color="red")
             draw_direction(position,y_direction,color="green")
             draw_direction(position,z_direction,color="blue")
 
-
-if __name__=="__main__":
-    # TODO 读取 test_vis_calibration.json 转化为标准格式
+def test_Myshow():
+    # 读取 test_vis_calibration.json 转化为标准格式
     with open("test_vis_calibration.json",'r',encoding = 'utf-8') as f:
         calibrations = json.load(f)
     # 整理格式
@@ -173,4 +242,10 @@ if __name__=="__main__":
     # myshow.draw_cameras_position(cameras)
     myshow.draw_cameras_pose(cameras)
     myshow.show()
+
+
+
+if __name__=="__main__":
+    # test_Myplot3d()
+    test_Myshow()
 
