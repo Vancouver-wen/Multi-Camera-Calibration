@@ -13,8 +13,8 @@ config.board_size= "A0"
 config.board_pixel_pre_mm= "2"
 
 # CalibrationParameters
-config.auto=True
-config.recollect=False
+config.auto=True  # 人工采集校准图片 or 程序自动采集
+config.recollect=False  # 是否重新采集 校准图片
 config.img_path="./img_collect/"
 
 config.response_threshold=20 # 一个图片成为合格的校准图像，所需要具备的“可用角点数量”
