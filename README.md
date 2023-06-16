@@ -1,15 +1,23 @@
 ## 多相机校准工具Camera-Calibration
+> TODO 仿照 https://blog.csdn.net/LeoEdwin/article/details/128095585 完善可视化效果
 
 #### 程序原理：
 [相机模型、校准原理](./camera_calibration_principle/相机模型校准原理.md)
+
 [相机参数转换](https://blog.csdn.net/ustczhng2012/article/details/120177812)
+
 [求解PnP问题](https://www.jianshu.com/p/ce4d05d13cb4)
+
 [从相对外参到绝对外参](./camera_calibration_principle/windows环境配置.md)
+
 
 #### 环境配置
 [Windows](./camera_calibration_principle/windows环境配置.md)
+
 [Ubuntu](./camera_calibration_principle/ubuntu环境配置.md)
+
 [配置环境的 BUG Log](./camera_calibration_principle/bugRecord.md)
+
 
 
 #### Camera-Calibration的调用
